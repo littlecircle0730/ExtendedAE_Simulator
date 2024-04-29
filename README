@@ -1,0 +1,21 @@
+To compile (yes, I will make this better, with ant or something similar...):
+
+javac BLEDiscSimulator.java
+
+
+To run:
+
+java BLEDiscSimulator <propertiesfile> <logfile> <numRuns>
+
+For example:
+
+java BLEDiscSimulator simulation.properties output_revised_wp.log 100000
+
+OR execute:
+1. generate_multiple_properties.sh (adjust desired disc_prob before running)
+2. run.sh (adjust desired disc_prob before running)
+
+
+The properties files included are right now one for each protocol. Each property is documented, so you can change them around per batch execution (but within one batch, everyone uses the same properties file).
+
+The format of the log output_revised_wp is determined by the associated property. The "cdf" setting is the one we're using to generate the R cdf plots. If you also use the "printstatistics" option in the properties file, the simulator will output_revised_wp a single (average) "duty cycle" value for each node for each run. If you redirect that to a file, they're easy to average in R.
