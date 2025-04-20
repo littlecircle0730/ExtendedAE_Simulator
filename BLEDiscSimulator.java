@@ -97,11 +97,14 @@ public class BLEDiscSimulator{
 
 		for(int idCounter = 0; idCounter<numNodes; idCounter++){
 			BLESchedule schedule = null;
-			if(options.getProtocol()==BLEDiscSimulatorOptions.PROTOCOL_BLEND){
+			if (options.getProtocol() == BLEDiscSimulatorOptions.PROTOCOL_BLEND) {
 				schedule = new BLEndAESchedule(idCounter, options, simulationTime, null);
 			} else if(options.getProtocol()==BLEDiscSimulatorOptions.PROTOCOL_NIHAO){
 				schedule = new NihaoAESchedule(idCounter, options, simulationTime, null);
-			} else{
+			}  else if(options.getProtocol()==BLEDiscSimulatorOptions.METHOD_EXTENDED_NIHAO){
+				schedule = new NihaoExtendedAESchedule(idCounter, options, simulationTime, null);
+			} else {
+				// ExtendedAE or Extended
 				schedule = new ExtendedAESchedule(idCounter, options, simulationTime, null);
 			}
 			if(schedule != null){
@@ -186,8 +189,8 @@ public class BLEDiscSimulator{
     // find the *first* time it discovered each other time (starting at some randomly selected "contact"
     // time. We randomly select the contact time as being between T (or t) (for warmup) and simulationTime/2
     private void computeCDFData(){
-		double intervalSize = (simulationTime/2) - 1.5*options.getT();
-		double contactTime = (Math.random() * intervalSize) + 1.5*options.getT();
+		double intervalSize = (simulationTime/2) - 2*options.getW();
+		double contactTime = (Math.random() * intervalSize) + 2*options.getW();
 		//System.out.println("SETTING CONTACT TIME EXPLICITLY!");
 		//int contactTime = 8638;
 		// buono. the discoveries are in order, so we scroll through them to find the first event that happens
@@ -242,26 +245,14 @@ public class BLEDiscSimulator{
 				}
 				curPartialDiscovery.add(chunkNumber);
 				partialDiscoveries.put(key, curPartialDiscovery); 
-				// // CHANGES
-				// Integer curPartialDiscovery = partialDiscoveries.get(key);
-				// if (curPartialDiscovery == null) {
-				// 	// If the key is not found, initialize the count to 1 (assuming the first chunk is discovered)
-				// 	curPartialDiscovery = 1;
-				// } else {
-				// 	// Otherwise, increment the current count
-				// 	curPartialDiscovery += 1;
-				// }
-				// partialDiscoveries.put(key, curPartialDiscovery);
-
 				// Check if all the chunks of discoveredNode is discovered and then add to successfulDiscoveries if so
 				int n;
-				if ((options.getChunks() * 0.7) % 1 > 0) {
-					n = (int) Math.floor(options.getChunks() * 0.7) + 1;
+				if ((options.getChunks() * 0.8) % 1 > 0) {
+					n = (int) Math.floor(options.getChunks() * 0.8) + 1;
 				} else {
-					n = (int) Math.floor(options.getChunks() * 0.7);
+					n = (int) Math.floor(options.getChunks() * 0.8);
 				}
-				// if (curPartialDiscovery.size() == options.getChunks()) {
-				if (curPartialDiscovery.size() == n) {
+				if (curPartialDiscovery.size() >= n) {
 				// if (curPartialDiscovery >= n) {
 					if (discoveryLatencies[discovererID][discoveredID] > discoveryTime) {
 						discoveryLatencies[discovererID][discoveredID] = discoveryTime;
@@ -339,7 +330,7 @@ public class BLEDiscSimulator{
 			logger.log("A: " + base.getTime() + " : " + base.getNodeID() + "\n");
 		}
 		if (!options.modelChannels()) {
-			boolean isExtended = options.getProtocol() == BLEDiscSimulatorOptions.METHOD_MIX;
+			boolean isExtended = options.getProtocol() == BLEDiscSimulatorOptions.METHOD_MIX || options.getProtocol() == BLEDiscSimulatorOptions.METHOD_EXTENDED || options.getProtocol() == BLEDiscSimulatorOptions.METHOD_EXTENDED_NIHAO;
 			processSingleBeacon(base, 0, base.getSecondChannel(), isExtended); // just use channel 0 for primary channel;
 		} else {
 			// we need to create three beacons on the three different beacon channels.
@@ -372,7 +363,7 @@ public class BLEDiscSimulator{
 		if (logStyle == BLEDiscSimulatorOptions.LOG_STYLE_VERBOSE) {
 			logger.log("A" + baocse.getPrimaryChannel() + " " + baocse.getSecondChannel() + ": " + baocse.getTime() + " : " + baocse.getNodeID() + "\n");
 		}
-		if (options.getProtocol() == BLEDiscSimulatorOptions.METHOD_MIX) {
+		if (options.getProtocol() == BLEDiscSimulatorOptions.METHOD_MIX || options.getProtocol() == BLEDiscSimulatorOptions.METHOD_EXTENDED || options.getProtocol() == BLEDiscSimulatorOptions.METHOD_EXTENDED_NIHAO) {
 			processSingleBeacon(baocse, baocse.getPrimaryChannel(), baocse.getSecondChannel(), true); //extended + AE
 		} else {
 			processSingleBeacon(baocse, baocse.getPrimaryChannel(), baocse.getSecondChannel(), false);
@@ -440,13 +431,15 @@ public class BLEDiscSimulator{
 		// if I didn't collide, then the current listeners (who were also listening when I started) discovered me
 		ExtendedAdvertisingEventRecord aer = getExtendedAdvertisingEventRecordForNodeID(baee.getNodeID());
 
-		boolean isExtended = options.getProtocol() == BLEDiscSimulatorOptions.METHOD_MIX;
+		boolean isExtended = options.getProtocol() == BLEDiscSimulatorOptions.METHOD_MIX || options.getProtocol() == BLEDiscSimulatorOptions.METHOD_EXTENDED || options.getProtocol() == BLEDiscSimulatorOptions.METHOD_EXTENDED_NIHAO;
 
 		if (aer != null) {
 			if (!aer.collided) {
 				for (ListenEventRecord listenerRecord : currentListeners) {
 					boolean isBlocked = listenerRecord.startTime < aer.latestOverlap; // the beacon can't be received because the scanner is on secondary channel when this beacon starts
-					if (listenerRecord.startTime < aer.startTime && !isBlocked || !isExtended) {
+					double totalBeaconLength = options.getB() + options.getAUXOffset() + options.getSecondB();
+					boolean isMissed = listenerRecord.startTime >= baee.time - totalBeaconLength; // if the beacon start time is less than the listener's start time, the beacon is not received
+					if (listenerRecord.startTime < aer.startTime && !isBlocked && !isMissed || !isExtended) { 
 						// if we're modeling channels, we have to make sure the channels match
 						if (!options.modelChannels() || aer.primaryChannel == listenerRecord.channel) {
 							aer.addDiscovererNode(listenerRecord.nodeID);
@@ -463,171 +456,6 @@ public class BLEDiscSimulator{
 			currentExtendedAdvertisers.remove(aer);
 		}
 	}
-
-
-	// // // For mix !!!
-    // // // depending on whether we're modeling the three channels or not, this could be a BLEExtendedAdvertiseStartEvent or it could actually be
-    // // // a BLEAdvertiseOneChannelStartEvent. This will matter for determining whether or not we check the channel against the listener's channel.
-    // // private void processSingleBeacon(BLEExtendedAdvertiseStartEvent base, int primaryChannel, int secondChannel){
-	// // 	// create a record to store the other devices that have discovered me
-	// // 	// this is actually so we can correct for conflicts
-	// // 	ExtendedAdvertisingEventRecord myAdvertisingEventRecord = new ExtendedAdvertisingEventRecord(base.getNodeID(), primaryChannel, secondChannel, base.getTime());
-
-	// // 	// when I start advertising, I assume that every listener discovers me. If they're not still
-	// // 	// listening when I stop, I'll remove them. Also, if we detect a collision, we'll remove them
-
-	// // 	// hears this advertisement
-	// // 	// cycle through all of the current advertisers
-	// // 	for (ExtendedAdvertisingEventRecord otherAdvertiser : currentExtendedAdvertisers) {
-
-	// // 		// if we're modeling the three BLE channels, we need to ensure that the two advertisers' channels match. If they don't,
-	// // 		// then we don't actually have a collision
-	// // 		// therefore, we only proceed for this advertiser if either (a) we're not modeling channels OR the two advertsisers are on
-	// // 		// the same channel
-	// // 		// because the parameter for this method is only a BLEAdvertiseOneChannelStart event if we're modeling channels,
-	// // 		// we have to check and cast...
-			
-	// // 		// HC: CHANGING!
-	// // 		//BLEExtendedAdvertiseOneChannelStartEvent baocse = (BLEExtendedAdvertiseOneChannelStartEvent) base;
-	// // 		boolean primaryOverlap = otherAdvertiser.startTime + options.getB() >= base.getTime() && otherAdvertiser.primaryChannel == primaryChannel;
-	// // 		// the seconday beacon is overlap if they use the same seconodary channel and their secondary execution time overlap
-	// // 		boolean secondaryOverlap = otherAdvertiser.secondChannel == secondChannel && otherAdvertiser.startTime + options.getSecondB() >= base.getTime();
-
-	// // 		// record the lateset start time of previous beacon on the same primary channel
-	// // 		// It might cause the current beacon not being discovered
-	// // 		if (otherAdvertiser.primaryChannel == primaryChannel) {
-	// // 			double totalBeaconLength = options.getB() + options.getAUXOffset() + options.getSecondB();
-	// // 			// Since we use priority queue, otherAdvertiser's start time must earlier than base.getTime()
-	// // 			if (otherAdvertiser.startTime + totalBeaconLength >= base.getTime()) {
-	// // 				if (myAdvertisingEventRecord.latestOverlap == 0 || 
-	// // 					(myAdvertisingEventRecord.latestOverlap != 0 && myAdvertisingEventRecord.latestOverlap < otherAdvertiser.startTime)) {
-	// // 					myAdvertisingEventRecord.latestOverlap = otherAdvertiser.startTime;
-	// // 				}
-	// // 			}
-	// // 		}
-	// // 		if (primaryOverlap || secondaryOverlap) {
-	// // 			// all I have to do is mark the advertiser as a collider. Then when we end advertising, we can handle discovery.
-	// // 			otherAdvertiser.collided = true;
-	// // 			myAdvertisingEventRecord.collided = true;
-
-	// // 			// for bookkeeping, we keep track of the collisions. So log it.
-	// // 			for (Integer discovererNode : otherAdvertiser.discovererNodes) {
-	// // 				int discovererNodeID = discovererNode.intValue();
-	// // 				ListenEventRecord listenerRecord = getListenEventRecordForNodeID(discovererNodeID);
-	// // 				if (listenerRecord != null) {
-	// // 					if (logStyle == BLEDiscSimulatorOptions.LOG_STYLE_VERBOSE) {
-	// // 						logger.log("C: " + base.getTime() + " : " + base.getNodeID() + " : "
-	// // 								+ otherAdvertiser.nodeID + " : (" + discovererNodeID + ")\n");
-	// // 					}
-	// // 				}
-	// // 				// we want to keep track of the collision, just for completeness
-	// // 				Collision c = new Collision(base.getNodeID(), otherAdvertiser.nodeID, discovererNodeID, base.getTime());
-	// // 				collisions.add(c);
-	// // 			}
-	// // 		}
-	// // 	}
-	// // 	currentExtendedAdvertisers.add(myAdvertisingEventRecord);
-    // // }
-	// // public void process(BLEExtendedAdvertiseEndEvent baee){
-	// // 	// if I didn't collide, then the current listeners (who were also listening when I started) discovered me
-	// // 	ExtendedAdvertisingEventRecord aer = getExtendedAdvertisingEventRecordForNodeID(baee.getNodeID());
-	// // 	// OK, so this is maybe terrible, but the one time this aer might be null is if we're modeling the three channels and this is the
-	// // 	// leftover end event that the schedule originally had, but was replaced by the three end events for the individual beacons.
-	// // 	// in those cases, we can just ignore those beacons, so we just skip the rest of this method...
-	// // 	if (aer != null) {
-	// // 		if (!aer.collided) {
-	// // 			for (ListenEventRecord listenerRecord : currentListeners) {
-	// // 				boolean isBlocked = listenerRecord.startTime < aer.latestOverlap; // the beacon can't be received because the scanner is on secondary channel when this beacon starts
-	// // 				// add each discoverer
-	// // 				if (listenerRecord.startTime < aer.startTime && !isBlocked) {
-	// // 					// if we're modeling channels, we have to make sure the channels match, too. Therefore, we log a discovery event if:
-	// // 					// (a) we're not modeling channels or (b) the channels match
-	// // 					if (!options.modelChannels() || aer.primaryChannel == listenerRecord.channel) {
-	// // 						aer.addDiscovererNode(listenerRecord.nodeID);
-	// // 						// create the discovery event for the listener
-	// // 						listenerRecord.addDiscoveryEvent(baee.getNodeID(), aer.startTime, baee.getSeq());
-
-	// // 						// some protocols (e.g., BLEnd with bidirectional discovery) need to trigger some behavior
-	// // 						// upon a successful discovery. So we need to grab the BLESchedule associatd with the discoverer
-	// // 						// and call the onDiscoveryEvent callback
-	// // 						BLESchedule discoverersSchedule = getScheduleForNodeID(listenerRecord.nodeID);
-	// // 						discoverersSchedule.onDiscovery(baee, this);
-	// // 					}
-	// // 				}
-	// // 			}
-	// // 		}
-	// // 		// to completely stop advertising, I remove the aer
-	// // 		currentExtendedAdvertisers.remove(aer);
-	// // 	}
-    // // }
-	// // HC: CHANGING!
-    // // depending on whether we're modeling the three channels or not, this could be a BLEExtendedAdvertiseStartEvent or it could actually be
-    // // a BLEAdvertiseOneChannelStartEvent. This will matter for determining whether or not we check the channel against the listener's channel.
-    // private void processSingleBeacon(BLEExtendedAdvertiseStartEvent base, int primaryChannel, int secondChannel){
-	// 	// create a record to store the other devices that have discovered me
-	// 	// this is actually so we can correct for conflicts
-	// 	ExtendedAdvertisingEventRecord myAdvertisingEventRecord = new ExtendedAdvertisingEventRecord(base.getNodeID(), primaryChannel, secondChannel, base.getTime());
-
-	// 	// when I start advertising, I assume that every listener discovers me. If they're not still
-	// 	// listening when I stop, I'll remove them. Also, if we detect a collision, we'll remove them
-
-	// 	// hears this advertisement
-	// 	// cycle through all of the current advertisers
-	// 	for (ExtendedAdvertisingEventRecord otherAdvertiser : currentExtendedAdvertisers) {
-			
-	// 		// HC: CHANGING!
-	// 		//BLEExtendedAdvertiseOneChannelStartEvent baocse = (BLEExtendedAdvertiseOneChannelStartEvent) base;
-	// 		boolean primaryOverlap = true;
-
-	// 		if (primaryOverlap) {//otherAdvertiser.startTime + options.getB() > base.getTime()
-	// 			// all I have to do is mark the advertiser as a collider. Then when we end advertising, we can handle discovery.
-	// 			otherAdvertiser.collided = true;
-	// 			myAdvertisingEventRecord.collided = true;
-
-	// 			// for bookkeeping, we keep track of the collisions. So log it.
-	// 			for (Integer discovererNode : otherAdvertiser.discovererNodes) {
-	// 				int discovererNodeID = discovererNode.intValue();
-	// 				ListenEventRecord listenerRecord = getListenEventRecordForNodeID(discovererNodeID);
-	// 				if (listenerRecord != null) {
-	// 					if (logStyle == BLEDiscSimulatorOptions.LOG_STYLE_VERBOSE) {
-	// 						logger.log("C: " + base.getTime() + " : " + base.getNodeID() + " : "
-	// 								+ otherAdvertiser.nodeID + " : (" + discovererNodeID + ")\n");
-	// 					}
-	// 				}
-	// 				// we want to keep track of the collision, just for completeness
-	// 				Collision c = new Collision(base.getNodeID(), otherAdvertiser.nodeID, discovererNodeID, base.getTime());
-	// 				collisions.add(c);
-	// 			}
-	// 		}
-	// 	}
-	// 	currentExtendedAdvertisers.add(myAdvertisingEventRecord);
-    // }
-    // public void process(BLEExtendedAdvertiseEndEvent baee){
-	// 	// if I didn't collide, then the current listeners (who were also listening when I started) discovered me
-	// 	ExtendedAdvertisingEventRecord aer = getExtendedAdvertisingEventRecordForNodeID(baee.getNodeID());
-	// 	// OK, so this is maybe terrible, but the one time this aer might be null is if we're modeling the three channels and this is the
-	// 	// leftover end event that the schedule originally had, but was replaced by the three end events for the individual beacons.
-	// 	// in those cases, we can just ignore those beacons, so we just skip the rest of this method...
-	// 	if (aer != null) {
-	// 		if (!aer.collided) {
-	// 			for (ListenEventRecord listenerRecord : currentListeners) {
-	// 				// if we're modeling channels, we have to make sure the channels match, too. Therefore, we log a discovery event if:
-	// 				// (a) we're not modeling channels or (b) the channels match
-	// 				if (!options.modelChannels() || aer.primaryChannel == listenerRecord.channel) {
-	// 					aer.addDiscovererNode(listenerRecord.nodeID);
-	// 					// create the discovery event for the listener
-	// 					listenerRecord.addDiscoveryEvent(baee.getNodeID(), aer.startTime, baee.getSeq());
-	// 				}
-	// 			}
-	// 		}
-	// 		// to completely stop advertising, I remove the aer
-	// 		currentExtendedAdvertisers.remove(aer);
-	// 	}
-    // }
-	
-
-
-
 
 
     // this will grab the DiscoveryEvent object associated with a given node id

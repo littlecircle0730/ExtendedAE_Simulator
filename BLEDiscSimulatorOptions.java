@@ -24,13 +24,15 @@ public class BLEDiscSimulatorOptions implements Serializable{
     // public static int PROTOCOL_SEARCHLIGHT = 1;
     public static int PROTOCOL_NIHAO = 2;
 	public static int METHOD_MIX = 3;
+	public static int METHOD_EXTENDED = 4;
+	public static int METHOD_EXTENDED_NIHAO = 5;
 
     private static int DEFAULT_NUM_NODES = 10;
     private static double DEFAULT_T = 1000;
     private static double DEFAULT_L = 100;
-    private static double DEFAULT_SLOT_LENGTH = 10;
+    private static double DEFAULT_SLOT_LENGTH = 100;
     private static double DEFAULT_SIMULATION_TIME = 3000;
-    private static double DEFAULT_B = 1.1;
+	private static double DEFAULT_B = 1.1;
 	private static double DEFAULT_SECOND_B = 2; // 1 Mbps for 255 Bytes needs 2.04ms
 	private static double DEFAULT_AUX_OFFSET = 3; 
 	private static double DEFAULT_M = 0;
@@ -57,10 +59,13 @@ public class BLEDiscSimulatorOptions implements Serializable{
 	private static double DEFAULT_RX_COST = 2.108;
 	private static double DEFAULT_WP_SCAN_COST = 0.406;
 	private static double DEFAULT_WP_ADV_COST = 0.339;
+	private static double  DEFAULT_SEC_B_COST = 7.98; // secondary channel
 
 	private static boolean DEFAULT_ADD_EXTRA = true;
 	private static double DEFAULT_WP_SCAN = 0;
 	private static double DEFAULT_WP_ADV = 0;
+
+	private static int DEFAULT_W = 0;
 
 	private static int DEFAULT_CHUNK = 1; //multi-adv only
 
@@ -132,16 +137,28 @@ public class BLEDiscSimulatorOptions implements Serializable{
 		}
 	}
 
-	public double getWpAdvCost(){
+	public double getWpAdvCost() {
 		String WpAdvCost = null;
-		if(properties != null){
+		if (properties != null) {
 			WpAdvCost = properties.getProperty("WpAdvCost");
 		}
-		if(WpAdvCost != null){
+		if (WpAdvCost != null) {
 			return Double.parseDouble(WpAdvCost);
+		} else {
+			return DEFAULT_WP_ADV_COST;
+		}
+	}
+	
+	public double getSecAdvCost(){
+		String secAdvCost = null;
+		if(properties != null){
+			secAdvCost = properties.getProperty("secAdvCost");
+		}
+		if(secAdvCost != null){
+			return Double.parseDouble(secAdvCost);
 		}
 		else{
-			return DEFAULT_WP_ADV_COST;
+			return DEFAULT_SEC_B_COST;
 		}
 	}
     
@@ -288,18 +305,30 @@ public class BLEDiscSimulatorOptions implements Serializable{
 		}
 	}
 
-    public int getN(){
-	String n = null;
-	if(properties != null){
-	    n = properties.getProperty("n");
+	public int getN() {
+		String n = null;
+		if (properties != null) {
+			n = properties.getProperty("n");
+		}
+		if (n != null) {
+			return Integer.parseInt(n);
+		} else {
+			return DEFAULT_N;
+		}
 	}
-	if(n != null){
-	    return Integer.parseInt(n);
+	
+	public int getW(){
+		String W = null;
+		if(properties != null){
+			W = properties.getProperty("W");
+		}
+		if(W != null){
+			return Integer.parseInt(W);
+		}
+		else{
+			return DEFAULT_W;
+		}
 	}
-	else{
-	    return DEFAULT_N;
-	}
-    }
 
 	public int getChunks(){
 		String chunk = null;
@@ -512,8 +541,14 @@ public class BLEDiscSimulatorOptions implements Serializable{
 	else if(protocol.equals("nihao")){
 	    return PROTOCOL_NIHAO;
 	}
-	else if(protocol.equals("mix")){
-	    return METHOD_MIX;
+	else if (protocol.equals("mix")) {
+		return METHOD_MIX;
+	}
+	else if (protocol.equals("extended")) {
+		return METHOD_EXTENDED;
+	}
+	else if(protocol.equals("extendednihao")){
+	    return METHOD_EXTENDED_NIHAO;
 	}
 	else{
 	    return DEFAULT_PROTOCOL;
