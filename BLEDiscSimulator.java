@@ -62,12 +62,6 @@ public class BLEDiscSimulator{
 		this.numNodes = options.getNumNodes();
 		this.simulationTime = options.getSimulationTime();
 
-		// // HC: CHANGING
-		// if(this.numNodes * options.getChunks() > options.getL()+options.getB()+options.getMaxAdditionalAdvDelay()){
-		// 	System.err.println("No enough space for placing this much chunks of data");
-		// 	return ;
-		// }
-
 		if(options.loadSchedulesFromFile()){
 			loadSchedules(options.getScheduleLoadFile());
 		}

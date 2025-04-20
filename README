@@ -1,21 +1,11 @@
-To compile (yes, I will make this better, with ant or something similar...):
+# ExtendedAE Simulator
 
-javac BLEDiscSimulator.java
+This simulator supports CND extensions from the paper "Advanced Continuous Neighbor Discovery Methods for Enhancing Data Exchange". It includes configurations such as CodingAW and ExtAW, built on top of base protocols like BLEnd and Nihao. ExtBeacon is maintained separately.
 
+To run simulations, first use one of the `generate_multiple_properties_*.sh` scripts to generate the necessary `.properties` configuration files. For example, you can run `./generate_multiple_properties_ExtAW.sh`, `./generate_multiple_properties_CodingAW.sh`, or `./generate_multiple_properties_Nihoa_ExtendedAE.sh` depending on the protocol variant you want to simulate. The input files are the output from analytical models. These scripts produce one or more `.properties` files which define the simulation parameters such as discovery probability (`disc_prob`), number of nodes, number of runs, and so on. You can modify the scripts to adjust any of these parameters as needed.
 
-To run:
+After the properties files are generated, execute the corresponding `run_*.sh` script to start the simulations. For example, use `./run_Extended.sh`, `./run_BLEndAE.sh`, or `./run_NihaoExtendedAE.sh` based on which protocol you're simulating. These scripts automatically detect the generated `.properties` files and invoke the simulator with the correct parameters multiple times as defined in the script logic. You do not need to compile or run the Java class manually—everything is handled through the shell scripts.
 
-java BLEDiscSimulator <propertiesfile> <logfile> <numRuns>
+Simulation results are saved into `.log` files, usually named according to the protocol and configuration used. The log format depends on what is specified in the corresponding `.properties` file.
 
-For example:
-
-java BLEDiscSimulator simulation.properties output_revised_wp.log 100000
-
-OR execute:
-1. generate_multiple_properties.sh (adjust desired disc_prob before running)
-2. run.sh (adjust desired disc_prob before running)
-
-
-The properties files included are right now one for each protocol. Each property is documented, so you can change them around per batch execution (but within one batch, everyone uses the same properties file).
-
-The format of the log output_revised_wp is determined by the associated property. The "cdf" setting is the one we're using to generate the R cdf plots. If you also use the "printstatistics" option in the properties file, the simulator will output_revised_wp a single (average) "duty cycle" value for each node for each run. If you redirect that to a file, they're easy to average in R.
+Everything can be driven through the `.sh` scripts. You only need to modify the generation parameters, run the scripts, and collect the logs for analysis.

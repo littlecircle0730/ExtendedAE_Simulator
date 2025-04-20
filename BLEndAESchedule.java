@@ -54,27 +54,6 @@ public class BLEndAESchedule extends BLESchedule {
 		startOffset = (Math.random() * range);
 	}
 
-	// // //ORIG
-	// // a schedule has to be three epochs long to represent
-	// // listening on the three channels in turn
-	// void createSchedule() {
-	// 	if (schedule == null) {
-	// 		schedule = new ArrayList<BLEScheduleEvent>();
-	// 		// randomly choose one of the three scan channels to start on
-	// 		int scanChannel = (int) (Math.random() * 3);
-	// 		double epochStartTime = startOffset;
-	// 		while (epochStartTime < simulationTime) {
-
-	// 			double epochEndTime = epochStartTime + T;
-	// 			createOneEpoch(scanChannel, epochStartTime, 0, chunkNumber, epochEndTime);
-	// 			epochStartTime = epochEndTime;
-
-	// 			scanChannel = BLEScheduleEvent.getNextScanChannel(scanChannel);
-	// 			chunkNumber = (int) (Math.random() * 1000000); // CHANGE
-	// 		}
-	// 	}
-	// }
-
 	// a schedule has to be three epochs long to represent
 	// listening on the three channels in turn
 	void createSchedule() {
@@ -88,8 +67,6 @@ public class BLEndAESchedule extends BLESchedule {
 				double windowEndTime = windowStartTime + (W + W * Math.random()); //ExtendedAE
 				double epochStartTime = windowStartTime;
 
-				// while (epochStartTime < windowEndTime) {
-				// 	double epochEndTime = Math.min(windowEndTime, epochStartTime + T);
 				while (epochStartTime < windowStartTime + W) { // the rest of T does not adv or listen
 					double epochEndTime = Math.min(windowStartTime + W, epochStartTime + T);  // the rest of T does not adv or listen
 					
@@ -140,7 +117,6 @@ public class BLEndAESchedule extends BLESchedule {
 		}
 		// last beacon //BLEnd
 		if (lastBeaconTime + beaconLength < epochEndTime) {
-		// if (startTime + T == epochEndTime && lastBeaconTime + beaconLength < epochEndTime) {
 			BLEExtendedAdvertiseStartEvent startAdvertising = new BLEExtendedAdvertiseStartEvent(nodeID, epochEndTime - beaconLength, -1, chunkNumber);
 			schedule.add(startAdvertising);
 			BLEExtendedAdvertiseEndEvent endAdvertising = new BLEExtendedAdvertiseEndEvent(nodeID, epochEndTime, -1, chunkNumber);
